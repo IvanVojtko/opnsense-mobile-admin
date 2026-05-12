@@ -56,9 +56,9 @@ The app uses:
 
 For routers with self-signed certificates, the app can optionally ignore invalid SSL certificates. This is intended for controlled environments only.
 
-## GitLab CI
+## GitHub Actions
 
-This repository includes a `.gitlab-ci.yml` pipeline that builds the release APK when a release tag is pushed.
+This repository includes a GitHub Actions workflow at `.github/workflows/release-apk.yml` that builds the release APK when a version tag is pushed.
 
 Expected tag format:
 
@@ -68,7 +68,7 @@ v1.2.3
 v2.0.0-rc1
 ```
 
-The pipeline stores the generated APK as a GitLab job artifact.
+The workflow uploads the generated APK as a GitHub Actions artifact.
 
 ## Notes
 
