@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - "v*"
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
 
 jobs:
   build-release-apk:
@@ -33,9 +39,20 @@ jobs:
       - name: Build release APK
         run: ./gradlew --no-daemon assembleRelease
 
+      - name: Prepare release APK asset
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/*.apk "dist/opnsense-admin-${{ github.ref_name }}-release.apk"
+
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: opnsense-admin-${{ github.ref_name }}
-          path: app/build/outputs/apk/release/*.apk
+          path: dist/*.apk
           if-no-files-found: error
+
+      - name: Attach APK to GitHub release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.apk

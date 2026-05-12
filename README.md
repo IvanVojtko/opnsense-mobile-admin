@@ -58,7 +58,7 @@ For routers with self-signed certificates, the app can optionally ignore invalid
 
 ## GitHub Actions
 
-This repository includes a GitHub Actions workflow at `.github/workflows/release-apk.yml` that builds the release APK when a version tag is pushed.
+This repository includes a GitHub Actions workflow at `.github/workflows/release-apk.yml` that builds the release APK when a version tag is pushed and also attaches the APK to a published GitHub release.
 
 Expected tag format:
 
@@ -68,7 +68,7 @@ v1.2.3
 v2.0.0-rc1
 ```
 
-The workflow uploads the generated APK as a GitHub Actions artifact.
+The workflow uploads the generated APK as a GitHub Actions artifact, and when a GitHub release is published for that tag it also uploads the APK into the release assets.
 
 ## Notes
 
