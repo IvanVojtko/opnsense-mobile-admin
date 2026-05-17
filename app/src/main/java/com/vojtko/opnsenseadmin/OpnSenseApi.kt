@@ -80,6 +80,7 @@ data class FirmwareStatus(
     val latestVersion: String,
     val statusMessage: String,
     val updatesAvailable: String,
+    val updatePackages: List<String>,
     val downloadSize: String,
     val needsReboot: Boolean,
     val lastCheck: String,
@@ -1069,16 +1070,106 @@ private fun parseFirmwareStatus(
     status: JSONObject,
     upgrade: JSONObject
 ): FirmwareStatus {
+    val updatePackages = parseFirmwarePackageList(status)
+    val updatesSummary = parseFirmwareUpdatesSummary(status, updatePackages)
     return FirmwareStatus(
         productVersion = firstNonBlank(status, listOf("product_version", "productVersion", "series")) ?: "Unknown",
         latestVersion = firstNonBlank(status, listOf("product_latest", "productLatest", "new_version")) ?: "Unknown",
         statusMessage = firstNonBlank(status, listOf("status_msg", "status", "message")) ?: "No firmware status returned.",
-        updatesAvailable = firstNonBlank(status, listOf("updates", "upgrade_packages")) ?: "0",
+        updatesAvailable = updatesSummary,
+        updatePackages = updatePackages,
         downloadSize = firstNonBlank(status, listOf("download_size", "downloadSize")) ?: "Unknown",
         needsReboot = firstNonBlank(status, listOf("upgrade_needs_reboot", "needs_reboot")) == "1",
         lastCheck = firstNonBlank(status, listOf("last_check")) ?: "Unknown",
         upgradeStatus = firstNonBlank(upgrade, listOf("status", "message", "log")) ?: "Idle"
     )
+}
+
+private fun parseFirmwareUpdatesSummary(
+    status: JSONObject,
+    updatePackages: List<String>
+): String {
+    val rawUpdates = status.opt("updates")
+    val numericString = when (rawUpdates) {
+        is Number -> rawUpdates.toInt().toString()
+        is String -> rawUpdates.trim().takeIf { it.toIntOrNull() != null }
+        else -> null
+    }
+    if (numericString != null) {
+        return numericString
+    }
+    return if (updatePackages.isNotEmpty()) {
+        updatePackages.size.toString()
+    } else {
+        "0"
+    }
+}
+
+private fun parseFirmwarePackageList(status: JSONObject): List<String> {
+    val upgradePackages = status.opt("upgrade_packages")
+    val parsed = parsePackageEntries(upgradePackages)
+    if (parsed.isNotEmpty()) {
+        return parsed
+    }
+    val updates = status.opt("updates")
+    if (updates is String && updates.isNotBlank()) {
+        return parsePackageEntriesFromString(updates)
+    }
+    return emptyList()
+}
+
+private fun parsePackageEntries(value: Any?): List<String> = when (value) {
+    is JSONArray -> (0 until value.length()).mapNotNull { index ->
+        formatPackageEntry(value.opt(index))
+    }
+    is JSONObject -> {
+        val packageRows = value.optJSONArray("packages")
+        if (packageRows != null) {
+            parsePackageEntries(packageRows)
+        } else {
+            value.keys().asSequence().mapNotNull { key ->
+                val entry = value.opt(key)
+                formatPackageEntry(entry, fallbackName = key)
+            }.toList()
+        }
+    }
+    is String -> parsePackageEntriesFromString(value)
+    else -> emptyList()
+}
+
+private fun parsePackageEntriesFromString(raw: String): List<String> {
+    val trimmed = raw.trim()
+    if (trimmed.isEmpty()) {
+        return emptyList()
+    }
+    return runCatching {
+        when {
+            trimmed.startsWith("{") -> parsePackageEntries(JSONObject(trimmed))
+            trimmed.startsWith("[") -> parsePackageEntries(JSONArray(trimmed))
+            else -> emptyList()
+        }
+    }.getOrDefault(emptyList())
+}
+
+private fun formatPackageEntry(
+    value: Any?,
+    fallbackName: String? = null
+): String? = when (value) {
+    is JSONObject -> {
+        val name = firstNonBlank(value, listOf("name", "pkgname", "package", "product", "title"))
+            ?: fallbackName
+            ?: return null
+        val current = firstNonBlank(value, listOf("current_version", "current", "old", "installed"))
+        val next = firstNonBlank(value, listOf("new_version", "new", "target", "version"))
+        when {
+            !current.isNullOrBlank() && !next.isNullOrBlank() -> "$name $current -> $next"
+            !next.isNullOrBlank() -> "$name -> $next"
+            else -> name
+        }
+    }
+    is JSONArray -> value.optString(0).takeIf { it.isNotBlank() }
+    is String -> value.takeIf { it.isNotBlank() }
+    else -> fallbackName
 }
 
 private fun parseSystemNotifications(json: JSONObject): List<SystemNotification> {
