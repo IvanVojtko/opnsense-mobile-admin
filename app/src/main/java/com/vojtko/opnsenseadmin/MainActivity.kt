@@ -311,6 +311,8 @@ private fun LoginScreen(
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("API key") },
                         supportingText = { Text("OPNsense uses the API key as the Basic auth username") },
+                        singleLine = true,
+                        maxLines = 1,
                         shape = RoundedCornerShape(18.dp)
                     )
                     OutlinedTextField(
@@ -320,6 +322,8 @@ private fun LoginScreen(
                         label = { Text("API secret") },
                         supportingText = { Text("Used as the Basic auth password for diagnostics requests") },
                         visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        maxLines = 1,
                         shape = RoundedCornerShape(18.dp)
                     )
                     Row(
@@ -2058,6 +2062,17 @@ private fun FirmwareStatusCard(
             UpdatesDetailRow("Download size", status.downloadSize)
             UpdatesDetailRow("Last check", status.lastCheck)
             UpdatesDetailRow("Upgrade activity", status.upgradeStatus)
+            if (status.updatePackages.isNotEmpty()) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                Text("Packages", style = MaterialTheme.typography.titleMedium)
+                status.updatePackages.forEach { item ->
+                    Text(
+                        text = item,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             BoxWithConstraints {
                 val stackButtons = maxWidth < 480.dp
                 if (stackButtons) {
